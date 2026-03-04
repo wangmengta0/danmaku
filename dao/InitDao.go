@@ -22,9 +22,7 @@ func Init() {
 		},
 	)
 	var err error
-	dsn := "root:wangmengtao...33@tcp(127.0.0.1:3306)/danmaku?charset=utf8mb4&parseTime=True&loc=Local"
-	//想要正确的处理time.Time,需要带上 parseTime 参数，
-	//要支持完整的UTF-8编码，需要将 charset=utf8 更改为 charset=utf8mb4
+	dsn := "root:wangmengtao...33@tcp(localhost:3306)/danmaku?charset=utf8mb4&parseTime=True&loc=Local"
 	Db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
 		Logger: newLogger,
 	})
