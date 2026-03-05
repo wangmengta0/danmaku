@@ -30,3 +30,18 @@ func (r *Room) Size() int {
 	defer r.mu.Unlock()
 	return len(r.clients)
 }
+func (r *Room) Broadcast(data []byte, hub *Hub) {
+	r.mu.Lock()
+	clients := make([]*Client, 0, len(r.clients))
+	for c := range r.clients {
+		clients = append(clients, c)
+	}
+	r.mu.Unlock()
+	for _, client := range clients {
+		select {
+		case client.Send <- data:
+		default:
+			hub.Unregister <- client
+		}
+	}
+}

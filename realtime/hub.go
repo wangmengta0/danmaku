@@ -1,9 +1,14 @@
 package realtime
 
+type BroadcastMsg struct {
+	RoomId string
+	Data   []byte
+}
 type Hub struct {
 	Rooms      map[string]*Room
 	Register   chan *Client
 	Unregister chan *Client
+	Broadcast  chan BroadcastMsg
 }
 
 func NewHub() *Hub {
@@ -11,6 +16,7 @@ func NewHub() *Hub {
 		Rooms:      make(map[string]*Room),
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
+		Broadcast:  make(chan BroadcastMsg),
 	}
 }
 func (h *Hub) Run() {
@@ -22,6 +28,10 @@ func (h *Hub) Run() {
 		case client := <-h.Unregister:
 			if room, ok := h.Rooms[client.RoomId]; ok {
 				room.RemoveClient(client)
+			}
+		case msg := <-h.Broadcast:
+			if room, ok := h.Rooms[msg.RoomId]; ok {
+				room.Broadcast(msg.Data, h)
 			}
 		}
 	}

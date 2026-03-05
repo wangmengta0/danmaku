@@ -3,16 +3,20 @@ package service
 import (
 	"danmaku/dao"
 	"danmaku/model"
+	"danmaku/realtime"
+	"encoding/json"
 	"errors"
+	"strconv"
 	"time"
 )
 
 type SendServiceImpl struct {
 	danmakuDao dao.DanmakuDao
+	hub        *realtime.Hub
 }
 
-func NewSendServiceImpl(danmakuDao dao.DanmakuDao) SendService {
-	return &SendServiceImpl{danmakuDao: danmakuDao}
+func NewSendServiceImpl(danmakuDao dao.DanmakuDao, hub *realtime.Hub) SendService {
+	return &SendServiceImpl{danmakuDao: danmakuDao, hub: hub}
 }
 
 func (s *SendServiceImpl) Send(danmaku *SendDanmakuReq) error {
@@ -35,6 +39,20 @@ func (s *SendServiceImpl) Send(danmaku *SendDanmakuReq) error {
 	err := s.danmakuDao.CreateDanmaku(danmakuSend)
 	if err != nil {
 		return err
+	}
+	msg := map[string]any{
+		"type":       "danmaku",
+		"id":         danmakuSend.Id,
+		"videoId":    danmakuSend.VideoId,
+		"userId":     danmaku.UserId,
+		"content":    danmaku.Content,
+		"videoTime":  danmaku.VideoTime,
+		"createTime": danmakuSend.CreateTime,
+	}
+	b, _ := json.Marshal(msg)
+	s.hub.Broadcast <- realtime.BroadcastMsg{
+		RoomId: strconv.Itoa(danmakuSend.VideoId),
+		Data:   b,
 	}
 	return nil
 }

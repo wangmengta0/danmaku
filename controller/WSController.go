@@ -29,6 +29,7 @@ func (w *WSController) Subscribe(c *gin.Context) {
 			"code": 400,
 			"msg":  "video id is empty",
 		})
+		return
 	}
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
