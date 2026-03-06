@@ -3,6 +3,7 @@ package main
 import (
 	"danmaku/dao"
 	"danmaku/middle/rabbitmq"
+	"danmaku/middle/redis"
 	"danmaku/router"
 )
 
@@ -15,4 +16,6 @@ func initDeps() {
 	dao.Init()
 	rabbitmq.InitRabbitMQ()
 	rabbitmq.InitSendMQ()
+
+	redis.InitRedis()
 }

@@ -1,11 +1,15 @@
 package rabbitmq
 
 import (
+	"context"
 	"danmaku/dao"
+	"danmaku/middle/redis"
 	"danmaku/model"
 	"encoding/json"
+	"fmt"
 	"time"
 
+	goRedis "github.com/redis/go-redis/v9"
 	"github.com/streadway/amqp"
 )
 
@@ -143,6 +147,34 @@ func (sendMQ *SendMQ) consumerSendDanmaku(msg <-chan amqp.Delivery) {
 			flush()
 		}
 	}
+}
+
+func (sendMq *SendMQ) pushBatchToRedis(batch []model.Danmaku) {
+	if len(batch) == 0 {
+		return
+	}
+	ctx := context.Background()
+	videoDanmaku := make(map[int][]model.Danmaku)
+	for _, v := range batch {
+		videoDanmaku[v.VideoId] = append(videoDanmaku[v.VideoId], v)
+	}
+	pipe := redis.RdbReplay.Pipeline()
+	for videoId, list := range videoDanmaku {
+		cacheKey := fmt.Sprintf("danmaku:video:%d", videoId)
+		exist, _ := redis.RdbReplay.Exists(ctx, cacheKey).Result()
+		if exist > 0 {
+			var ZSetMembers []goRedis.Z
+			for _, member := range list {
+				memberJson, _ := json.Marshal(member)
+				ZSetMembers = append(ZSetMembers, goRedis.Z{
+					Score:  float64(member.VideoTime),
+					Member: memberJson,
+				})
+			}
+			pipe.ZAdd(ctx, cacheKey, ZSetMembers...)
+		}
+	}
+	_, _ = pipe.Exec(ctx)
 }
 
 var SendMQDel *SendMQ
