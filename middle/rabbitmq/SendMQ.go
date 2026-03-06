@@ -31,12 +31,7 @@ func NewSendMQ(queueName string) *SendMQ {
 	if err != nil {
 		panic(err)
 	}
-	return sendMQ
-}
-
-// 使用工作队列模式
-func (sendMQ *SendMQ) Producer(msg *model.SendMessageMQ) {
-	_, err := sendMQ.channel.QueueDeclare(
+	_, err = sendMQ.channel.QueueDeclare(
 		sendMQ.queueName,
 		false,
 		false,
@@ -47,6 +42,11 @@ func (sendMQ *SendMQ) Producer(msg *model.SendMessageMQ) {
 	if err != nil {
 		panic(err)
 	}
+	return sendMQ
+}
+
+// 使用工作队列模式
+func (sendMQ *SendMQ) Producer(msg *model.SendMessageMQ) {
 	body, err := json.Marshal(msg)
 	err = sendMQ.channel.Publish(
 		"",
@@ -63,17 +63,6 @@ func (sendMQ *SendMQ) Producer(msg *model.SendMessageMQ) {
 	}
 }
 func (sendMQ *SendMQ) Consumer() {
-	_, err := sendMQ.channel.QueueDeclare(
-		sendMQ.queueName,
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		panic(err)
-	}
 	_ = sendMQ.channel.Qos(200, 0, false)
 	msg, err := sendMQ.channel.Consume(
 		sendMQ.queueName,
