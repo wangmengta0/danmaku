@@ -2,11 +2,17 @@ package main
 
 import (
 	"danmaku/dao"
+	"danmaku/middle/rabbitmq"
 	"danmaku/router"
 )
 
 func main() {
-	dao.Init()
+	initDeps()
 	r := router.SetupRouter()
 	_ = r.Run(":8080")
+}
+func initDeps() {
+	dao.Init()
+	rabbitmq.InitRabbitMQ()
+	rabbitmq.InitSendMQ()
 }

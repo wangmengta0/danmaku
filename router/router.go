@@ -3,6 +3,7 @@ package router
 import (
 	"danmaku/controller"
 	"danmaku/dao"
+	"danmaku/middle/rabbitmq"
 	"danmaku/realtime"
 	"danmaku/service"
 
@@ -13,7 +14,7 @@ func SetupRouter() *gin.Engine {
 	router := gin.Default()
 	hub := realtime.NewHub()
 	go hub.Run()
-	sendSvc := service.NewSendServiceImpl(dao.DanmakuDao{}, hub)
+	sendSvc := service.NewSendServiceImpl(dao.DanmakuDao{}, hub, rabbitmq.SendMQDel)
 	sendCtl := controller.NewSendController(sendSvc)
 
 	replaySvc := service.NewReplayServiceImpl(dao.DanmakuDao{})

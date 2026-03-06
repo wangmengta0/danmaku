@@ -22,21 +22,23 @@ func (r *Room) AddClient(c *Client) {
 func (r *Room) RemoveClient(c *Client) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	delete(r.clients, c)
+	if _, ok := r.clients[c]; ok {
+		delete(r.clients, c)
+	}
 	close(c.Send)
 }
 func (r *Room) Size() int {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	return len(r.clients)
 }
 func (r *Room) Broadcast(data []byte, hub *Hub) {
-	r.mu.Lock()
+	r.mu.RLock()
 	clients := make([]*Client, 0, len(r.clients))
 	for c := range r.clients {
 		clients = append(clients, c)
 	}
-	r.mu.Unlock()
+	r.mu.RUnlock()
 	for _, client := range clients {
 		select {
 		case client.Send <- data:

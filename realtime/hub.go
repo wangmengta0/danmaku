@@ -16,7 +16,7 @@ func NewHub() *Hub {
 		Rooms:      make(map[string]*Room),
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
-		Broadcast:  make(chan BroadcastMsg),
+		Broadcast:  make(chan BroadcastMsg, 1024),
 	}
 }
 func (h *Hub) Run() {
