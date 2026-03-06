@@ -3,6 +3,8 @@ package dao
 import (
 	"danmaku/model"
 	"log"
+
+	"gorm.io/gorm/clause"
 )
 
 type DanmakuDao struct{}
@@ -27,5 +29,7 @@ func (d DanmakuDao) DanmakuList(videoId int, start int, end int, limit int) ([]m
 	return list, nil
 }
 func (d DanmakuDao) SaveBatch(batch []model.Danmaku) error {
-	return Db.CreateInBatches(batch, 200).Error
+	return Db.Clauses(clause.OnConflict{
+		DoNothing: true,
+	}).CreateInBatches(batch, 200).Error
 }

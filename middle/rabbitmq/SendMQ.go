@@ -108,9 +108,10 @@ func (sendMQ *SendMQ) consumerSendDanmaku(msg <-chan amqp.Delivery) {
 		err := dao.DanmakuDao{}.SaveBatch(batch)
 		if err != nil {
 			for _, d := range deliveries {
-				_ = d.Nack(false, true)
+				_ = d.Nack(false, false)
 			}
 		} else {
+			go sendMQ.pushBatchToRedis(batch)
 			for _, d := range deliveries {
 				_ = d.Ack(false)
 			}
