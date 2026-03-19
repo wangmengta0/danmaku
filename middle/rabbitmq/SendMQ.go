@@ -33,7 +33,7 @@ func NewSendMQ(queueName string) *SendMQ {
 	}
 	_, err = sendMQ.channel.QueueDeclare(
 		sendMQ.queueName,
-		false,
+		true,
 		false,
 		false,
 		false,
@@ -54,8 +54,9 @@ func (sendMQ *SendMQ) Producer(msg *model.SendMessageMQ) {
 		false,
 		false,
 		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        body,
+			DeliveryMode: amqp.Persistent,
+			ContentType:  "application/json",
+			Body:         body,
 		},
 	)
 	if err != nil {
@@ -97,10 +98,12 @@ func (sendMQ *SendMQ) consumerSendDanmaku(msg <-chan amqp.Delivery) {
 		err := dao.DanmakuDao{}.SaveBatch(batch)
 		if err != nil {
 			for _, d := range deliveries {
-				_ = d.Nack(false, false)
+				_ = d.Nack(false, true)
 			}
 		} else {
-			go sendMQ.pushBatchToRedis(batch)
+			batchCopy := make([]model.Danmaku, len(batch))
+			copy(batchCopy, batch)
+			go sendMQ.pushBatchToRedis(batchCopy)
 			for _, d := range deliveries {
 				_ = d.Ack(false)
 			}
@@ -148,21 +151,29 @@ func (sendMq *SendMQ) pushBatchToRedis(batch []model.Danmaku) {
 	for _, v := range batch {
 		videoDanmaku[v.VideoId] = append(videoDanmaku[v.VideoId], v)
 	}
+	script := goRedis.NewScript(`
+		if redis.call('exist', KEYS[1]) == 1 then
+			return redis.call('ZADD', KEYS[1],unpack(ARGV)
+		else
+			return 0
+		end
+	`)
 	pipe := redis.RdbReplay.Pipeline()
 	for videoId, list := range videoDanmaku {
 		cacheKey := fmt.Sprintf("danmaku:video:%d", videoId)
-		exist, _ := redis.RdbReplay.Exists(ctx, cacheKey).Result()
-		if exist > 0 {
-			var ZSetMembers []goRedis.Z
-			for _, member := range list {
-				memberJson, _ := json.Marshal(member)
-				ZSetMembers = append(ZSetMembers, goRedis.Z{
-					Score:  float64(member.VideoTime),
-					Member: memberJson,
-				})
-			}
-			pipe.ZAdd(ctx, cacheKey, ZSetMembers...)
+		var args []interface{}
+		for _, member := range list {
+			memberJson, _ := json.Marshal(member)
+			args = append(args, float64(member.VideoTime), memberJson)
 		}
+		for i := 0; i < 3; i++ {
+			err := script.Run(ctx, redis.RdbReplay, []string{cacheKey}, args...).Err()
+			if err == nil {
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+
 	}
 	_, _ = pipe.Exec(ctx)
 }
